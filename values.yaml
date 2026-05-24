@@ -6,15 +6,10 @@ image:
 
 port: 9908
 
-# hostPID required for the exporter to read host process/namespace metadata
-hostPID: true
-
 # hostPort exposes the metrics port on the node's network interface.
 # Disable if Prometheus scrapes via pod IP (recommended).
 hostPort:
   enabled: false
-
-stateDirPath: /var/lib/datafy/pipes
 
 resources:
   limits:

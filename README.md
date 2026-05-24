@@ -41,9 +41,7 @@ helm upgrade datafy-exporter . -n datafy
 | `image.tag` | `""` (uses `appVersion`) | Image tag |
 | `image.pullPolicy` | `IfNotPresent` | Pull policy |
 | `port` | `9908` | Metrics port |
-| `hostPID` | `true` | Required for host process/namespace visibility |
 | `hostPort.enabled` | `false` | Expose port on node network interface |
-| `stateDirPath` | `/var/lib/datafy/pipes` | Host path for Datafy pipes state |
 | `resources.limits.cpu` | `100m` | CPU limit |
 | `resources.limits.memory` | `64Mi` | Memory limit |
 | `resources.requests.cpu` | `50m` | CPU request |

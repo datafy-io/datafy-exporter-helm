@@ -12,7 +12,7 @@ spec:
       labels:
         app: datafy-exporter
     spec:
-      hostPID: {{ .Values.hostPID }}
+      hostPID: true
       tolerations:
         - operator: Exists
       containers:
@@ -54,5 +54,5 @@ spec:
             type: Directory
         - name: datafy-pipes-state
           hostPath:
-            path: {{ .Values.stateDirPath }}
+            path: /var/lib/datafy/pipes
             type: DirectoryOrCreate
