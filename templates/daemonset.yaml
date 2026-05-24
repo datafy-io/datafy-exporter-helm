@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datafy-exporter
+spec:
+  selector:
+    matchLabels:
+      app: datafy-exporter
+  template:
+    metadata:
+      labels:
+        app: datafy-exporter
+    spec:
+      hostPID: true
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: datafy-exporter
+          image: public.ecr.aws/datafy-io/datafy-exporter:latest
+          imagePullPolicy: Always
+          args:
+            - "-port=9908"
+          ports:
+            - name: metrics
+              containerPort: 9908
+              hostPort: 9908
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+              readOnly: true
+            - name: geoms-state-dir
+              mountPath: /var/lib/datafy/pipes
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+        - name: geoms-state-dir
+          hostPath:
+            path: /var/lib/datafy/pipes
+            type: DirectoryOrCreate
