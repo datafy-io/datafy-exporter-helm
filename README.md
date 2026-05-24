@@ -41,7 +41,7 @@ helm upgrade datafy-exporter . -n datafy
 | `image.tag` | `""` (uses `appVersion`) | Image tag |
 | `image.pullPolicy` | `IfNotPresent` | Pull policy |
 | `port` | `9908` | Metrics port |
-| `hostPort.enabled` | `false` | Expose port on node network interface |
+| `hostPort.enabled` | `true` | Expose metrics port on node IP (required for remote Prometheus) |
 | `resources.limits.cpu` | `100m` | CPU limit |
 | `resources.limits.memory` | `64Mi` | Memory limit |
 | `resources.requests.cpu` | `50m` | CPU request |
@@ -55,23 +55,21 @@ helm install datafy-exporter . -n datafy --set port=9100
 
 ## Prometheus Scraping
 
-The exporter is compatible with standard Prometheus scraping. Example scrape config:
+The exporter binds to each node's IP via `hostPort`, so remote Prometheus instances can scrape it directly using node discovery:
 
 ```yaml
 scrape_configs:
   - job_name: datafy-exporter
     kubernetes_sd_configs:
-      - role: pod
+      - role: node
     relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_label_app]
-        action: keep
-        regex: datafy-exporter
-      - source_labels: [__meta_kubernetes_pod_ip]
+      - source_labels: [__address__]
+        regex: '(.*):.*'
+        replacement: '$1:9908'
         target_label: __address__
-        replacement: $1:9908
 ```
 
-Enable `hostPort.enabled=true` only if your Prometheus scrapes node IPs directly rather than pod IPs.
+Set `hostPort.enabled=false` only if Prometheus runs inside the cluster and scrapes pod IPs directly.
 
 ## Reference
 
