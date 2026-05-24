@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: datafy-exporter
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
@@ -11,31 +12,47 @@ spec:
       labels:
         app: datafy-exporter
     spec:
-      hostPID: true
+      hostPID: {{ .Values.hostPID }}
       tolerations:
         - operator: Exists
       containers:
         - name: datafy-exporter
-          image: public.ecr.aws/datafy-io/datafy-exporter:latest
-          imagePullPolicy: Always
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
-            - "-port=9908"
+            - "-port={{ .Values.port }}"
           ports:
             - name: metrics
-              containerPort: 9908
-              hostPort: 9908
+              containerPort: {{ .Values.port }}
+              {{- if .Values.hostPort.enabled }}
+              hostPort: {{ .Values.port }}
+              {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: host-root
               mountPath: /host
               readOnly: true
-            - name: geoms-state-dir
+            - name: datafy-pipes-state
               mountPath: /var/lib/datafy/pipes
       volumes:
         - name: host-root
           hostPath:
             path: /
             type: Directory
-        - name: geoms-state-dir
+        - name: datafy-pipes-state
           hostPath:
-            path: /var/lib/datafy/pipes
+            path: {{ .Values.stateDirPath }}
             type: DirectoryOrCreate
