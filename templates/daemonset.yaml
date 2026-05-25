@@ -1,17 +1,20 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: datafy-exporter
+  name: {{ include "datafy-exporter.fullname" . }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "datafy-exporter.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: datafy-exporter
+      {{- include "datafy-exporter.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: datafy-exporter
+        {{- include "datafy-exporter.selectorLabels" . | nindent 8 }}
     spec:
+      serviceAccountName: {{ include "datafy-exporter.serviceAccountName" . }}
       hostPID: true
       tolerations:
         - operator: Exists
@@ -47,6 +50,7 @@ spec:
               readOnly: true
             - name: datafy-pipes-state
               mountPath: /var/lib/datafy/pipes
+              readOnly: true
       volumes:
         - name: host-root
           hostPath:

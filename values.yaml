@@ -6,10 +6,25 @@ image:
 
 port: 9908
 
-# hostPort exposes the metrics port on the node's network interface.
-# Disable if Prometheus scrapes via pod IP (recommended).
-hostPort:
+# Service for Prometheus to scrape via pod IP (recommended over hostPort).
+service:
   enabled: true
+  type: ClusterIP
+  # Set to "None" for a headless service (direct pod DNS).
+  clusterIP: ""
+  annotations: {}
+  labels: {}
+
+# hostPort exposes the metrics port directly on the node's network interface.
+# Disable when using the Service above (recommended).
+hostPort:
+  enabled: false
+
+serviceAccount:
+  create: true
+  # Defaults to the fullname of the release when empty.
+  name: ""
+  annotations: {}
 
 resources:
   limits:
