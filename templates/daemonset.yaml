@@ -51,6 +51,7 @@ spec:
             - name: host-root
               mountPath: /host
               readOnly: true
+              mountPropagation: HostToContainer
             - name: datafy-pipes-state
               mountPath: /var/lib/datafy/pipes
               readOnly: true
