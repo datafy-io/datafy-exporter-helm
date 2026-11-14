@@ -41,7 +41,7 @@ helm upgrade datafy-exporter . -n datafy
 | `image.tag` | `""` (uses `appVersion`) | Image tag |
 | `image.pullPolicy` | `IfNotPresent` | Pull policy |
 | `port` | `9908` | Metrics port |
-| `hostPort.enabled` | `true` | Expose metrics port on node IP (required for remote Prometheus) |
+| `hostPort.enabled` | `false` | Expose metrics port on node IP (enable for node-IP scraping) |
 | `resources.limits.cpu` | `100m` | CPU limit |
 | `resources.limits.memory` | `64Mi` | Memory limit |
 | `resources.requests.cpu` | `50m` | CPU request |
@@ -56,18 +56,20 @@ helm install datafy-exporter . -n datafy --set port=9100
 ## Host mount labels (DT-12919)
 
 The chart sets `DATAFY_EXPORTER_HOST_ROOT=/host` to match its host-root volume
-mount. With an exporter image containing DT-12919, disk metrics use the node's
+mount. The default exporter 0.0.6 image includes DT-12919. Disk metrics use the node's
 mount paths: `/host` becomes `/`, and `/host/boot/efi` becomes `/boot/efi`.
 Native installations leave this variable unset and retain their existing paths.
 
-Select the image containing the fix with `image.tag` until the chart's default
-`appVersion` is updated for that release. Exporter 0.0.5 predates this setting.
+Chart 0.1.1 defaults to exporter 0.0.6. Publish that image before releasing or
+installing this chart. Override `image.tag` to select another compatible image.
 Existing Prometheus series with `/host...` labels stop receiving samples; update
 queries that explicitly match those paths to the corrected host paths.
 
 ## Prometheus Scraping
 
-The exporter binds to each node's IP via `hostPort`, so remote Prometheus instances can scrape it directly using node discovery:
+The default Service supports in-cluster scraping over pod IPs. For node-IP
+scraping with the configuration below, set `hostPort.enabled=true` and
+`service.enabled=false`:
 
 ```yaml
 scrape_configs:
@@ -81,7 +83,8 @@ scrape_configs:
         target_label: __address__
 ```
 
-Set `hostPort.enabled=false` only if Prometheus runs inside the cluster and scrapes pod IPs directly.
+Keep `hostPort.enabled=false` (the default) when scraping through the Service
+or directly over pod IPs.
 
 ## Reference
 

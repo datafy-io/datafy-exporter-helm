@@ -2,8 +2,8 @@ apiVersion: v2
 name: datafy-exporter
 description: Helm chart for deploying the Datafy node exporter as a DaemonSet
 type: application
-version: 0.1.0
-appVersion: "0.0.5"
+version: 0.1.1
+appVersion: "0.0.6"
 home: https://datafy.io
 sources:
   - https://github.com/datafy-io/datafy-exporter-helm
