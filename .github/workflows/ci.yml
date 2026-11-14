@@ -1,0 +1,44 @@
+name: Helm CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  helm:
+    name: Helm lint and template
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Helm
+        uses: azure/setup-helm@0697c8e2d5a705b86834a17ed8d5d2a996d3a464 # v5
+        with:
+          version: v3.22.1
+      - name: Lint chart
+        run: helm lint --strict .
+      - name: Render default configuration
+        run: helm template exporter . --namespace datafy > "$RUNNER_TEMP/exporter-default.yaml"
+      - name: Render override configuration
+        run: |
+          helm template exporter . --namespace datafy \
+            --set image.tag=ci-validation \
+            --set port=9100 \
+            --set hostPort.enabled=true \
+            --set service.enabled=false \
+            --set serviceAccount.create=false \
+            --set serviceAccount.name=existing-exporter \
+            > "$RUNNER_TEMP/exporter-overrides.yaml"
