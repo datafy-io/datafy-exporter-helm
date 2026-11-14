@@ -53,6 +53,18 @@ Override any value with `--set` or a custom `values.yaml`:
 helm install datafy-exporter . -n datafy --set port=9100
 ```
 
+## Host mount labels (DT-12919)
+
+The chart sets `DATAFY_EXPORTER_HOST_ROOT=/host` to match its host-root volume
+mount. With an exporter image containing DT-12919, disk metrics use the node's
+mount paths: `/host` becomes `/`, and `/host/boot/efi` becomes `/boot/efi`.
+Native installations leave this variable unset and retain their existing paths.
+
+Select the image containing the fix with `image.tag` until the chart's default
+`appVersion` is updated for that release. Exporter 0.0.5 predates this setting.
+Existing Prometheus series with `/host...` labels stop receiving samples; update
+queries that explicitly match those paths to the corrected host paths.
+
 ## Prometheus Scraping
 
 The exporter binds to each node's IP via `hostPort`, so remote Prometheus instances can scrape it directly using node discovery:
