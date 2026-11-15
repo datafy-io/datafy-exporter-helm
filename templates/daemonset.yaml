@@ -25,6 +25,10 @@ spec:
           env:
             - name: DATAFY_EXPORTER_HOST_ROOT
               value: /host
+            {{- with .Values.stateDir }}
+            - name: DATAFY_STATE_DIR
+              value: {{ . | quote }}
+            {{- end }}
           args:
             - "-port={{ .Values.port }}"
           ports:
@@ -38,12 +42,14 @@ spec:
               path: /metrics
               port: metrics
             initialDelaySeconds: 5
+            timeoutSeconds: 6
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /metrics
               port: metrics
             initialDelaySeconds: 5
+            timeoutSeconds: 6
             periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
@@ -52,15 +58,8 @@ spec:
               mountPath: /host
               readOnly: true
               mountPropagation: HostToContainer
-            - name: datafy-pipes-state
-              mountPath: /var/lib/datafy/pipes
-              readOnly: true
       volumes:
         - name: host-root
           hostPath:
             path: /
             type: Directory
-        - name: datafy-pipes-state
-          hostPath:
-            path: /var/lib/datafy/pipes
-            type: DirectoryOrCreate

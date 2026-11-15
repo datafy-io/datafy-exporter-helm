@@ -36,9 +36,18 @@ jobs:
         run: |
           helm template exporter . --namespace datafy \
             --set image.tag=ci-validation \
+            --set stateDir=/run/custom-datafy-state \
             --set port=9100 \
             --set hostPort.enabled=true \
             --set service.enabled=false \
             --set serviceAccount.create=false \
             --set serviceAccount.name=existing-exporter \
             > "$RUNNER_TEMP/exporter-overrides.yaml"
+      - name: Check host state access
+        run: |
+          grep -qF 'mountPropagation: HostToContainer' "$RUNNER_TEMP/exporter-default.yaml"
+          if grep -qF 'datafy-pipes-state' "$RUNNER_TEMP/exporter-default.yaml" "$RUNNER_TEMP/exporter-overrides.yaml"; then
+            echo 'Geometry state must use the host-root mount'
+            exit 1
+          fi
+          grep -qF 'value: "/run/custom-datafy-state"' "$RUNNER_TEMP/exporter-overrides.yaml"
