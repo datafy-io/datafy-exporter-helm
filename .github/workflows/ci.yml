@@ -27,7 +27,7 @@ jobs:
       - name: Set up Helm
         uses: azure/setup-helm@0697c8e2d5a705b86834a17ed8d5d2a996d3a464 # v5
         with:
-          version: v3.22.1
+          version: v4.3.2
       - name: Lint chart
         run: helm lint --strict .
       - name: Render default configuration
