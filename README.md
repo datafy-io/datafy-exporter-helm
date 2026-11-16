@@ -24,14 +24,26 @@ Metrics include disk capacity, available bytes, utilization percentage, and volu
 ## Installation
 
 ```sh
-helm install datafy-exporter . -n datafy --create-namespace
+helm repo add datafyio https://helm.datafy.io/datafy-exporter
+helm repo update
+helm install datafy-exporter datafyio/datafy-exporter -n datafy --create-namespace
 ```
 
 Upgrade:
 
 ```sh
-helm upgrade datafy-exporter . -n datafy
+helm repo update
+helm upgrade datafy-exporter datafyio/datafy-exporter -n datafy
 ```
+
+Pin a chart version with `--version <X>`. To install from a checkout of this repository instead,
+replace `datafyio/datafy-exporter` with `.`.
+
+## Releasing
+
+Every push to `master` runs `.github/workflows/release.yml`, which packages the chart and publishes
+it to `https://helm.datafy.io/datafy-exporter`. A version that is already published is never
+overwritten, so bump `version` in `Chart.yaml` for any chart change you want released.
 
 ## Configuration
 
