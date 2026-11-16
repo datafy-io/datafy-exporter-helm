@@ -7,10 +7,9 @@ name: Release Chart
 # The repository is a plain Helm repository built with `helm repo index` and the AWS CLI. The
 # helm-s3 plugin that datafy-agent-helm uses does not provide its `helm s3` command on Helm 4.
 
+# Manual only: run it from the Actions tab (or `gh workflow run release.yml --ref master`) once the
+# chart on master is ready to ship. Merging to master does not publish anything.
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
 
 permissions:
@@ -34,6 +33,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      - name: Require the master branch
+        if: github.ref != 'refs/heads/master'
+        run: |
+          echo "::error::Charts are released from master only; this run was started on '$GITHUB_REF_NAME'."
+          exit 1
+
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

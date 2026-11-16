@@ -41,9 +41,17 @@ replace `datafyio/datafy-exporter` with `.`.
 
 ## Releasing
 
-Every push to `master` runs `.github/workflows/release.yml`, which packages the chart and publishes
-it to `https://helm.datafy.io/datafy-exporter`. A version that is already published is never
-overwritten, so bump `version` in `Chart.yaml` for any chart change you want released.
+Releases are manual. After the chart change is merged to `master`, run the **Release Chart**
+workflow on `master` from the Actions tab, or:
+
+```sh
+gh workflow run release.yml --ref master
+```
+
+It packages the chart and publishes it to `https://helm.datafy.io/datafy-exporter`. Merging alone
+publishes nothing, and the workflow refuses to run on any other branch. A version that is already
+published is never overwritten, so bump `version` in `Chart.yaml` for any chart change you want
+released.
 
 ## Configuration
 
