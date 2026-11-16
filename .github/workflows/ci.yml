@@ -51,3 +51,9 @@ jobs:
             exit 1
           fi
           grep -qF 'value: "/run/custom-datafy-state"' "$RUNNER_TEMP/exporter-overrides.yaml"
+      # release.yml only runs on master; this catches a helm-s3 / Helm incompatibility on the PR.
+      # Keep the plugin version in step with HELM_S3_VERSION in release.yml.
+      - name: Check the release plugin loads
+        run: |
+          helm plugin install https://github.com/hypnoglow/helm-s3.git --version 0.17.2 --verify=false
+          helm s3 version
