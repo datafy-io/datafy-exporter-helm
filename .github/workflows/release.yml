@@ -1,14 +1,8 @@
 name: Release Chart
 
-# Publishes the chart to the public Helm repository at https://helm.datafy.io/datafy-exporter
-# (S3 bucket helm.datafy.io in the production account, served by CloudFront), next to the agent
-# chart under /datafy-agent. Customers need no GitHub access to install it.
-#
-# The repository is a plain Helm repository built with `helm repo index` and the AWS CLI. The
-# helm-s3 plugin that datafy-agent-helm uses does not provide its `helm s3` command on Helm 4.
+# Publishes the chart to https://helm.datafy.io/datafy-exporter (prod S3 bucket helm.datafy.io).
 
-# Manual only: run it from the Actions tab (or `gh workflow run release.yml --ref master`) once the
-# chart on master is ready to ship. Merging to master does not publish anything.
+# Manual only, on master: merging does not publish.
 on:
   workflow_dispatch:
 
@@ -16,7 +10,7 @@ permissions:
   id-token: write # OIDC to assume the production AWS role
   contents: read
 
-# Two releases updating index.yaml at once would lose one of the entries.
+# Concurrent releases would overwrite each other's index.yaml update.
 concurrency:
   group: release-chart
   cancel-in-progress: false
@@ -70,8 +64,7 @@ jobs:
           helm lint --strict .
           helm package . --destination "$RUNNER_TEMP/dist"
 
-      # Only a definite "not found" counts as the first release. Any other failure stops the run:
-      # publishing without the current index would drop every earlier version from it.
+      # Only a 404 means first release; any other error stops, or the index would lose old versions.
       - name: Fetch the published index
         id: index
         run: |
@@ -100,20 +93,19 @@ jobs:
             exit 0
           fi
 
-          # No --url: entries get relative URLs, which resolve against whatever host serves the index.
+          # No --url, so the index uses relative chart URLs.
           if [ "$INDEX_EXISTS" = "true" ]; then
             helm repo index "$RUNNER_TEMP/dist" --merge "$RUNNER_TEMP/published-index.yaml"
           else
             helm repo index "$RUNNER_TEMP/dist"
           fi
 
-          # Package first, index last, so the index never lists a chart that is not there yet.
+          # Package before index, so the index never lists a missing chart.
           aws s3 cp "$RUNNER_TEMP/dist/$package" "s3://$S3_BUCKET/$S3_PREFIX/$package" --content-type application/gzip
           aws s3 cp "$RUNNER_TEMP/dist/index.yaml" "s3://$S3_BUCKET/$S3_PREFIX/index.yaml" --content-type application/yaml
           echo "::notice::Published $CHART_NAME $CHART_VERSION to $PUBLIC_REPO"
 
-      # The customer's path: anonymous HTTPS, no AWS or GitHub credentials. Fails the release if the
-      # chart cannot be fetched from the public URL, so a run can no longer succeed and publish nothing.
+      # Fetch as a customer would (anonymous HTTPS); fail if the chart is not publicly installable.
       - name: Verify the chart installs from the public repository
         env:
           CHART_VERSION: ${{ steps.chart.outputs.version }}
