@@ -38,6 +38,16 @@ jobs:
         with:
           persist-credentials: false
 
+      # The org secret only reaches private repos; a public repo needs it set at repo level.
+      - name: Require the production role secret
+        env:
+          ROLE_ARN: ${{ secrets.PRODUCTION_AWS_ROLE_ARN }}
+        run: |
+          if [ -z "$ROLE_ARN" ]; then
+            echo "::error::PRODUCTION_AWS_ROLE_ARN is not available to this repository; add it as a repository secret."
+            exit 1
+          fi
+
       - name: Configure AWS credentials (production)
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
         with:
