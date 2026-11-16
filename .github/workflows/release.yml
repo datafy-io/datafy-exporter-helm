@@ -1,8 +1,11 @@
 name: Release Chart
 
 # Publishes the chart to the public Helm repository at https://helm.datafy.io/datafy-exporter
-# (S3 bucket helm.datafy.io in the production account, served by CloudFront), the same way
-# datafy-agent-helm publishes to /datafy-agent. Customers need no GitHub access to install it.
+# (S3 bucket helm.datafy.io in the production account, served by CloudFront), next to the agent
+# chart under /datafy-agent. Customers need no GitHub access to install it.
+#
+# The repository is a plain Helm repository built with `helm repo index` and the AWS CLI. The
+# helm-s3 plugin that datafy-agent-helm uses does not provide its `helm s3` command on Helm 4.
 
 on:
   push:
@@ -21,9 +24,9 @@ concurrency:
 
 env:
   CHART_NAME: datafy-exporter
-  S3_REPO: s3://helm.datafy.io/datafy-exporter
+  S3_BUCKET: helm.datafy.io
+  S3_PREFIX: datafy-exporter
   PUBLIC_REPO: https://helm.datafy.io/datafy-exporter
-  HELM_S3_VERSION: 0.17.2
 
 jobs:
   release:
@@ -62,35 +65,53 @@ jobs:
           helm lint --strict .
           helm package . --destination "$RUNNER_TEMP/dist"
 
-      - name: Add the S3 Helm repository
+      # Only a definite "not found" counts as the first release. Any other failure stops the run:
+      # publishing without the current index would drop every earlier version from it.
+      - name: Fetch the published index
+        id: index
         run: |
-          # Helm 4 verifies plugin signatures by default and helm-s3 is installed from git, which
-          # cannot be verified, so verification is off and the plugin is pinned to a release instead.
-          helm plugin install https://github.com/hypnoglow/helm-s3.git --version "$HELM_S3_VERSION" --verify=false
-          # Creates index.yaml on the first release; a no-op afterwards.
-          helm s3 init --ignore-if-exists "$S3_REPO"
-          helm repo add datafyio-s3 "$S3_REPO"
+          key="$S3_PREFIX/index.yaml"
+          if aws s3api head-object --bucket "$S3_BUCKET" --key "$key" > /dev/null 2> "$RUNNER_TEMP/head.err"; then
+            aws s3 cp "s3://$S3_BUCKET/$key" "$RUNNER_TEMP/published-index.yaml"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif grep -q -E '\(404\)|Not Found' "$RUNNER_TEMP/head.err"; then
+            echo "::notice::No index at s3://$S3_BUCKET/$key yet; this is the first release."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            cat "$RUNNER_TEMP/head.err"
+            echo "::error::Could not read s3://$S3_BUCKET/$key"
+            exit 1
+          fi
 
-      - name: Push chart
+      - name: Publish chart
         env:
           CHART_VERSION: ${{ steps.chart.outputs.version }}
+          INDEX_EXISTS: ${{ steps.index.outputs.exists }}
         run: |
-          if helm search repo "datafyio-s3/$CHART_NAME" --version "$CHART_VERSION" --output json \
-              | grep -q "\"version\":\"$CHART_VERSION\""; then
+          package="$CHART_NAME-$CHART_VERSION.tgz"
+          if [ "$INDEX_EXISTS" = "true" ] \
+              && yq ".entries[\"$CHART_NAME\"][].version" "$RUNNER_TEMP/published-index.yaml" | grep -Fxq "$CHART_VERSION"; then
             echo "::notice::$CHART_NAME $CHART_VERSION is already published; nothing pushed. Bump version in Chart.yaml to release chart changes."
-          else
-            helm s3 push "$RUNNER_TEMP/dist/$CHART_NAME-$CHART_VERSION.tgz" datafyio-s3 --relative
-            echo "::notice::Published $CHART_NAME $CHART_VERSION to $PUBLIC_REPO"
+            exit 0
           fi
+
+          # No --url: entries get relative URLs, which resolve against whatever host serves the index.
+          if [ "$INDEX_EXISTS" = "true" ]; then
+            helm repo index "$RUNNER_TEMP/dist" --merge "$RUNNER_TEMP/published-index.yaml"
+          else
+            helm repo index "$RUNNER_TEMP/dist"
+          fi
+
+          # Package first, index last, so the index never lists a chart that is not there yet.
+          aws s3 cp "$RUNNER_TEMP/dist/$package" "s3://$S3_BUCKET/$S3_PREFIX/$package" --content-type application/gzip
+          aws s3 cp "$RUNNER_TEMP/dist/index.yaml" "s3://$S3_BUCKET/$S3_PREFIX/index.yaml" --content-type application/yaml
+          echo "::notice::Published $CHART_NAME $CHART_VERSION to $PUBLIC_REPO"
 
       # The customer's path: anonymous HTTPS, no AWS or GitHub credentials. Fails the release if the
       # chart cannot be fetched from the public URL, so a run can no longer succeed and publish nothing.
       - name: Verify the chart installs from the public repository
         env:
           CHART_VERSION: ${{ steps.chart.outputs.version }}
-          AWS_ACCESS_KEY_ID: ""
-          AWS_SECRET_ACCESS_KEY: ""
-          AWS_SESSION_TOKEN: ""
         run: |
           helm repo add datafyio "$PUBLIC_REPO"
           helm repo update datafyio
